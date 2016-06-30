@@ -1,4 +1,6 @@
-import Test from './best';
+import ReactDom from 'react-dom';
+import React from 'react';
+import $ from 'jquery';
+import Page from './page';
 
-setInterval(() => {console.log("DUDE! ... and " + Test)}, 1000);
-console.log("HI");
+ReactDom.render(React.createElement(Page), $('#hole')[0]);
