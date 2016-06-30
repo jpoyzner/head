@@ -4,7 +4,7 @@
   "description": "That's the point!",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js",
+    "start": "node server.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
@@ -18,6 +18,14 @@
   },
   "homepage": "https://github.com/jpoyzner/head",
   "dependencies": {
-    "express": "^4.14.0"
+    "babel-preset-es2015": "^6.9.0",
+    "babel-preset-react": "^6.11.1",
+    "babelify": "^7.3.0",
+    "del": "^2.2.1",
+    "express": "^4.14.0",
+    "gulp": "^3.9.1",
+    "gulp-babel": "^6.1.2",
+    "gulp-browserify": "^0.5.1",
+    "reactify": "^1.1.1"
   }
 }
