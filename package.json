@@ -24,7 +24,6 @@
     "del": "^2.2.1",
     "express": "^4.14.0",
     "gulp": "^3.9.1",
-    "gulp-babel": "^6.1.2",
     "gulp-browserify": "^0.5.1",
     "reactify": "^1.1.1"
   }

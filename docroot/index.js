@@ -5,7 +5,6 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports.default = "CHEDDAR CHEESE";
-//module.exports = "CHEDDAR CHEESE";
 
 
 },{}],2:[function(require,module,exports){
@@ -16,8 +15,6 @@ var _best = require("./best");
 var _best2 = _interopRequireDefault(_best);
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-//var Test = require('./best');
 
 setInterval(function () {
   console.log("DUDE! ... and " + _best2.default);
