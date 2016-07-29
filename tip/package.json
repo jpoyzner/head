@@ -1,7 +1,7 @@
 {
-  "name": "OneM2MUI",
+  "name": "jefftip",
   "version": "1.0.0",
-  "description": "OneM2M UI",
+  "description": "Jeff Tip",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
