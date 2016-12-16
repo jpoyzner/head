@@ -1,0 +1,132 @@
+#gn-power-quality-chart {
+	border: 1px solid #BDBDBD;
+	height: 430px;
+	width: 1070px;
+
+	#gn-power-quality-chart-header {
+		background: linear-gradient(to bottom, #fff, #ebecee);
+    	padding: 4px 10px;
+	}
+
+	#gn-power-quality-chart-body {
+		border-top: 1px solid #BDBDBD;
+	}
+
+	#gn-power-quality-no-data {
+		background: #f4f4f4;
+    	border: 1px solid #CCC;
+    	height: 250px;
+    	margin: 20px;
+    	padding: 10px;
+	}
+
+	path, line {
+		fill: none;
+	    stroke-width: 2;
+		
+	    &.gn-path-voltage {
+			stroke: red;
+		}
+
+		&.gn-path-current {
+			stroke: blue;
+		}
+
+		&.gn-path-power-factor {
+			stroke: purple;
+		}
+
+	    &.gn-second {
+	    	stroke-dasharray: 5, 5;
+	    }
+
+	    &.gn-third {
+			stroke-dasharray: 2, 5;
+	    }
+	}
+
+	#gn-chart-svg > g > path {
+		cursor: pointer;
+	}
+
+	circle {
+		cursor: pointer;
+		opacity: 0;
+	}
+
+	.axis {
+		path, line {
+		    fill: none;
+		    shape-rendering: crispEdges;
+		    stroke: grey;
+		    stroke-width: 1;
+		}
+
+		&.yaxis1 {
+			fill: red;
+		}
+
+		&.yaxis2 {
+			fill: blue;
+		}
+
+		&.yaxis3 {
+			fill: purple;
+		}
+
+		.uom {
+			text-anchor: end;
+		}
+	}
+
+	#gn-chart-toggles {
+		@include relative(top -35px left 7px);
+
+		input {
+			cursor: pointer;
+		}
+
+		span {
+		   	@include relative(top -3px);
+    		cursor: pointer;
+    		margin-right: 10px
+    	}
+
+    	svg {
+	    	height: 8px;
+	    	margin-right: 2px;
+	    	width: 20px;
+
+	    	line {
+	    		stroke-width: 4px;
+	    	}
+	    }
+	}	
+
+	#gn-chart-voltage-bands {
+		@include relative(top -383px left 20px);
+		background-color: red;
+	    height: 294px;
+	    width: 15px;
+	}
+
+	#gn-pq-hover {
+		background-color: white;
+      	border: 3px solid;
+      	border-radius: 15px;
+      	display: none;
+      	opacity: .9;
+    	padding: 0px 7px;
+      	position: relative;
+
+      	p {
+      		text-align: center;
+      	}
+    }
+
+    //just for testing:
+    .firstband {
+    	background-color: blue;
+    	height: 80px;
+    }
+}
