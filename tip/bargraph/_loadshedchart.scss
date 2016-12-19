@@ -1,0 +1,55 @@
+#gn-load-shed-chart {
+    margin-top: -20px;
+
+    #gn-load-shed-chart-header {
+        @include relative(top 25px left 280px);
+    }
+
+    svg {
+        border: 1px solid black;
+        padding: 50px 0 20px;
+
+        .bar {
+            cursor: pointer;
+            fill: $chart-bars-color;
+
+            &:hover {
+                fill: $chart-hover-color !important;
+            }
+        }
+
+        text {
+            text-anchor: end !important;
+        }
+
+        .axis {
+            path, line {
+                fill: none;
+                stroke: black;
+                shape-rendering: crispEdges;
+            }
+
+            &.x path {
+                display: none;
+            }
+        }
+    }
+
+    #gn-load-shed-values {
+        @include relative(top -130px left 10px);
+
+        div {
+            margin-bottom: 10px;
+        }
+    }
+
+    #gn-bar-value {
+        background-color: $chart-hover-bg-color;
+        border-radius: 20px;
+        display: none;
+        padding: 3px 8px;
+        position: fixed;
+        z-index: $show-on-top;
+    }
+}
+
