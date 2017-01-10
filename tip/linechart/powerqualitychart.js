@@ -4,9 +4,269 @@ define(['react', 'models/powerquality', 'jquery'], function(React, PowerQuality,
 			GN.powerQualityChart = this;
 			this.model = new PowerQuality();
 			
+			var margin = {top: 30, right: 150, bottom: 30, left: 50};
+
+			var width = 1050 - margin.left - margin.right;
+			this.x = d3.time.scale().range([0, width]);			
+
 			this.model.on('sync', function(data) {
-				this.hoversAdded = false;	
-				this.setState({data: data.models[0], loading: false});
+				var data = data.models[0];
+				this.graph = data.get('graph');
+				
+				this.phases = 1;
+				if (this.graph && this.graph.length) {
+					var firstPoint = this.graph[0];
+					
+					if (firstPoint.y2) {
+						this.phases++;
+
+						if (firstPoint.y3) {
+							this.phases++;
+						}
+					}
+				}
+
+				var ticks = 15;
+				var tickFormat = "%m/%d %H:%M";
+				var pointDistance = 60000; //one minute
+				switch(data.get('aggregateType')) {
+					case 'Hour':  pointDistance *= 60; break;
+					case 'HalfHour':  pointDistance *= 30; break;
+					case 'QuarterHour': pointDistance *= 15; break;
+					default: tickFormat = "%H:%M"; ticks = 24;	
+				}
+
+				this.xAxis =
+					d3.svg.axis()
+						.scale(this.x)
+						.orient("bottom")
+						.ticks(ticks)
+						.tickFormat(d3.time.format(tickFormat));
+
+				var height =
+					(this.phases === 1 ? 320 : (350 - (this.phases - 1) * 75)
+					- margin.top
+					- margin.bottom);
+				
+				this.y0 = d3.scale.linear().range([height, 0]);
+				this.y1 = d3.scale.linear().range([height, 0]);
+				this.y2 = d3.scale.linear().range([height, 0]);
+				this.y0B = d3.scale.linear().range([height, 0]);
+				this.y1B = d3.scale.linear().range([height, 0]);
+				this.y2B = d3.scale.linear().range([height, 0]);
+				this.y0C = d3.scale.linear().range([height, 0]);
+				this.y1C = d3.scale.linear().range([height, 0]);
+				this.y2C = d3.scale.linear().range([height, 0]);
+
+				var yTicks = 10;
+				
+				this.yAxisLeft =
+					d3.svg.axis()
+						.scale(this.y0)
+						.orient("left")
+						.ticks(yTicks)
+						.tickFormat(d3.format("d"));
+				
+				this.yAxisRight =
+					d3.svg.axis()
+						.scale(this.y1)
+						.orient("right")
+						.ticks(yTicks);
+				
+				this.yAxisRight2 =
+					d3.svg.axis()
+						.scale(this.y2)
+						.orient("right")
+						.ticks(yTicks);
+				
+				this.yAxisLeftB =
+					d3.svg.axis()
+						.scale(this.y0B)
+						.orient("left")
+						.ticks(yTicks)
+						.tickFormat(d3.format("d"));
+				
+				this.yAxisRightB =
+					d3.svg.axis()
+						.scale(this.y1B)
+						.orient("right")
+						.ticks(yTicks);
+				
+				this.yAxisRight2B =
+					d3.svg.axis()
+						.scale(this.y2B)
+						.orient("right")
+						.ticks(yTicks);
+				
+				this.yAxisLeftC =
+					d3.svg.axis()
+						.scale(this.y0C)
+						.orient("left")
+						.ticks(yTicks)
+						.tickFormat(d3.format("d"));
+				
+				this.yAxisRightC =
+					d3.svg.axis()
+						.scale(this.y1C)
+						.orient("right")
+						.ticks(yTicks);
+				
+				this.yAxisRight2C =
+					d3.svg.axis()
+						.scale(this.y2C)
+						.orient("right")
+						.ticks(yTicks);			
+
+				this.x.domain(
+			    	d3.extent(
+			    		this.graph,
+			    		function(point) {
+			    			return point.date;
+			    		}));
+
+				var voltageDomain = this.getDomain(this.graph, 'y', null, null, 10);
+				if (voltageDomain) {
+					this.y0.domain(voltageDomain);
+				}
+			    
+			    var currentDomain = this.getDomain(this.graph, 'a', null, null, 10);
+			    if (currentDomain) {
+			    	this.y1.domain(currentDomain);
+			    }
+			    
+			    var powerFactorDomain = this.getDomain(this.graph, 'z', null, null, 10);
+			    if (powerFactorDomain) {
+			    	this.y2.domain(powerFactorDomain);
+			    }
+
+			    var voltageDomainB = this.getDomain(this.graph, null, 'y2', null, 10);
+			    if (voltageDomainB) {
+			    	this.y0B.domain(voltageDomainB);		    
+			    }
+			    
+			    var currentDomainB = this.getDomain(this.graph, null, 'a2', null, 10);
+			    if (currentDomainB) {
+			    	this.y1B.domain(currentDomainB);
+			    }
+			    
+			    var powerFactorDomainB = this.getDomain(this.graph, null, 'z2', null, 10);
+			    if (powerFactorDomainB) {
+			    	this.y2B.domain(powerFactorDomainB);
+			    }
+
+			    var voltageDomainC = this.getDomain(this.graph, null, null, 'y3', 10);
+				if (voltageDomainC) {
+					this.y0C.domain(voltageDomainC);
+				}
+			    
+			    var currentDomainC = this.getDomain(this.graph, null, null, 'a3', 10);
+			    if (currentDomainC) {
+			    	this.y1C.domain(currentDomainC);
+			    }
+			    
+			    var powerFactorDomainC = this.getDomain(this.graph, null, null, 'z3', 10);
+			    if (powerFactorDomainC) {
+			    	this.y2C.domain(powerFactorDomainC);
+			    }
+
+			    var voltageBandsets = data.get('bands');		    
+		    	var voltageBands = voltageBandsets[voltageBandsets[''] ? '' : 3].userValues;
+
+				var voltageADomain = this.getDomain(this.graph, 'y');			
+
+				var gradients = [{
+					id: 'gn-voltageAGrad',
+					min: voltageADomain[0],
+					height: voltageADomain[1] - voltageADomain[0]
+				}];
+
+				var voltageBDomain = this.getDomain(this.graph, 'y2');
+				if (voltageBDomain) {
+					gradients.push({
+						id: 'gn-voltageBGrad',
+						min: voltageBDomain[0],
+						height: voltageBDomain[1] - voltageBDomain[0]
+					});
+				}
+
+				var voltageCDomain = this.getDomain(this.graph, 'y3');
+				if (voltageCDomain) {
+					gradients.push({
+						id: 'gn-voltageCGrad',
+						min: voltageCDomain[0],
+						height: voltageCDomain[1] - voltageCDomain[0]
+					});
+				}
+
+				var linearGradients =
+					gradients.map(function(gradient, index) {
+						var ratio = 100 / gradient.height
+
+						return (
+							<linearGradient key={index}
+								id={gradient.id}
+								x2="0%" y1="100%">
+
+								<stop key={0}
+									stopColor={'black'}
+									offset=
+										{((voltageBands[0].voltageMin - gradient.min) * ratio)
+										+ '%'} />
+
+					            {voltageBands.map(function(band, index) {
+									var minOffset =
+										band.voltageMin - gradient.min;
+
+									var maxOffset =
+										band.voltageMax - gradient.min;
+
+									return [
+										<stop key={index * 2 + 1}
+											stopColor={'#' + band.color}
+											offset=
+												{(minOffset * ratio) + '%'} />,												
+
+										<stop key={index * 2 + 2}
+											stopColor={'#' + band.color}
+											offset=
+												{(maxOffset * ratio) + '%'} />
+									];
+								})}
+
+								<stop key={voltageBands.length * 2 + 1}
+									stopColor={'black'}
+									offset=
+										{((voltageBands[voltageBands.length - 1].voltageMax
+												- gradient.min)
+											* ratio)
+										+ '%'} />
+				        	</linearGradient>
+				        );
+					});
+
+				this.setState({
+					loading: false,
+					height: height,							
+					pointDistance: pointDistance,
+					currentDomain: currentDomain,
+					powerFactorDomain: powerFactorDomain,
+					currentDomainB: currentDomainB,
+					powerFactorDomainB: powerFactorDomainB,
+					currentDomainC: currentDomainC,
+					powerFactorDomainC: powerFactorDomainC,
+					linearGradients: linearGradients,
+					path: this.pathFunction(this.y0, 'y')(this.graph),
+					path2: this.pathFunction(this.y1, 'a')(this.graph),
+					path3: this.pathFunction(this.y2, 'z')(this.graph),
+					path4: this.pathFunction(this.y0B, 'y2')(this.graph),
+					path5: this.pathFunction(this.y1B, 'a2')(this.graph),
+					//path6: this.pathFunction(this.y2B, 'z2')(this.graph),
+					path7: this.pathFunction(this.y0C, 'y3')(this.graph),
+					path8: this.pathFunction(this.y1C, 'a3')(this.graph),
+					//path9: this.pathFunction(this.y2C, 'z3')(this.graph),
+					voltageBands: voltageBands,
+					hoversAdded: false
+				});
 			}.bind(this));			
 
 			return {
@@ -14,13 +274,24 @@ define(['react', 'models/powerquality', 'jquery'], function(React, PowerQuality,
 				voltageA: true,
 				voltageB: true,
 				voltageC: true,
-				currentA: true,
-				currentB: true,
-				currentC: true,
 				powerFactorA: true,
 				powerFactorB: true,
 				powerFactorC: true,
+				margin: margin,
+				width: width,				
+				legendLineLength: 20,
 			};
+		},
+		pathFunction: function(scale, unit) {
+			return d3.svg.line()
+		    	.x(function(point) {
+		    		return this.x(point.date);
+		    	}.bind(this))
+		    	.y(function(point) {
+		    		return scale(point[unit]);
+		    	}.bind(this)).defined(function(point) {
+		    		return point[unit];
+		    	});
 		},
 		render: function() {
 			$('#pw-quality-profile-table-chart table').remove();
@@ -42,409 +313,390 @@ define(['react', 'models/powerquality', 'jquery'], function(React, PowerQuality,
 				);
 			}
 
-			var ticks = 15;
-			var tickFormat = "%d/%m %H:%M";
-			var pointDistance = 60000; //one minute
-			switch(this.state.data.get('aggregateType')) {
-				case 'Hour':  pointDistance *= 60; break;
-				case 'HalfHour':  pointDistance *= 30; break;
-				case 'QuarterHour': pointDistance *= 15; break;
-				default: tickFormat = "%H:%M"; ticks = 24;	
-			}
+			var showGraphA =
+				this.state.voltageA || this.state.currentA || this.state.powerFactorA;
 
-			var margin = {top: 30, right: 150, bottom: 30, left: 50};
-			var width = 1050 - margin.left - margin.right;
-			var height = 350 - margin.top - margin.bottom;
+			var showGraphB =
+				this.phases !== 1
+				&& (this.state.voltageB || this.state.currentB || this.state.powerFactorB);
 
-			var x = d3.time.scale().range([0, width]);
-			this.x = x;
-			var y0 = d3.scale.linear().range([height, 0]);
-			this.y0 = y0;
-			var y1 = d3.scale.linear().range([height, 0]);
-			this.y1 = y1;
-			var y2 = d3.scale.linear().range([height, 0]);
-			this.y2 = y2;
+			var showGraphC =
+				this.phases === 3
+				&& (this.state.voltageC || this.state.currentC || this.state.powerFactorC);
 
-			this.xAxis =
-				d3.svg.axis()
-					.scale(x)
-					.orient("bottom")
-					.ticks(ticks)
-					.tickFormat(d3.time.format(tickFormat));
-			
-			var yTicks = 10;
-			this.yAxisLeft = d3.svg.axis().scale(y0).orient("left").ticks(yTicks);
-			this.yAxisRight = d3.svg.axis().scale(y1).orient("right").ticks(yTicks);
-			this.yAxisRight2 = d3.svg.axis().scale(y2).orient("right").ticks(yTicks); 
-
-			var valueline = //PHASE A voltage
-				d3.svg.line()
-			    	.x(function(point) {
-			    		return x(point.date);
-			    	})
-			    	.y(function(point) {
-			    		return y0(point.y);
-			    	}).defined(function(point) {
-			    		return point.y;
-			    	});
-			    
-			var valueline2 = //PHASE A voltage
-				d3.svg.line()
-				    .x(function(point) {
-				    	return x(point.date);
-				    })
-				    .y(function(point) {
-				    	return y1(point.a);
-				    }).defined(function(point) {
-			    		return point.a;
-			    	});
-
-			var valueline3 = //PHASE A power factor
-				d3.svg.line()
-				    .x(function(point) {
-				    	return x(point.date);
-				    })
-				    .y(function(point) {
-				    	return y2(point.z);
-				    }).defined(function(point) {
-			    		return point.z;
-			    	});
-
-			var valueline4 = //PHASE B voltage
-				d3.svg.line()
-			    	.x(function(point) {
-			    		return x(point.date);
-			    	})
-			    	.y(function(point) {
-			    		return y0(point.y2);
-			    	}).defined(function(point) {
-			    		return point.y2;
-			    	});
-			    
-			var valueline5 = //PHASE B current
-				d3.svg.line()
-				    .x(function(point) {
-				    	return x(point.date);
-				    })
-				    .y(function(point) {
-				    	return y1(point.a2);
-				    }).defined(function(point) {
-			    		return point.a2;
-			    	});
-
-			var valueline6 = //PHASE B power factor
-				d3.svg.line()
-				    .x(function(point) {
-				    	return x(point.date);
-				    })
-				    .y(function(point) {
-				    	return y2(point.z2);
-				    }).defined(function(point) {
-			    		return point.z2;
-			    	});
-
-			var valueline7 = //PHASE C voltage
-				d3.svg.line()
-			    	.x(function(point) {
-			    		return x(point.date);
-			    	})
-			    	.y(function(point) {
-			    		return y0(point.y3);
-			    	}).defined(function(point) {
-			    		return point.y3;
-			    	});
-			    
-			var valueline8 = //PHASE C current
-				d3.svg.line()
-				    .x(function(point) {
-				    	return x(point.date);
-				    })
-				    .y(function(point) {
-				    	return y1(point.a3);
-				    }).defined(function(point) {
-			    		return point.a3;
-			    	});
-
-			var valueline9 = //PHASE C power factor
-				d3.svg.line()
-				    .x(function(point) {
-				    	return x(point.date);
-				    })
-				    .y(function(point) {
-				    	return y2(point.z3);
-				    }).defined(function(point) {
-			    		return point.z3;
-			    	});
-
-			var graph = this.state.data.get('graph');
-			if (graph) {
-				for (var i = 0; i < graph.length; i++) {
-					var point = graph[i]
-				    var nextIndex = i + 1;
-				    var nextPoint = graph[nextIndex];
-					if (nextPoint) {
-						if (nextPoint.date - point.date !== pointDistance) {
-							//console.log("FIXING POINT " + i);
-
-							graph.splice(
-								nextIndex,
-								0,
-								{date: new Date(Number(point.date) + pointDistance)});
-						}
-					}
-				}
-			}
-
-			this.graph = graph;
-
-		    x.domain(
-		    	d3.extent(
-		    		graph,
-		    		function(point) {
-		    			return point.date;
-		    		}));
-
-		    y0.domain(this.getDomain(graph, 'y', 'y2', 'y3'));
-		    y1.domain(this.getDomain(graph, 'a', 'a2', 'a3'));
-		    y2.domain(this.getDomain(graph, 'z', 'z2', 'z3'));
-
-		    var legendLineLength = 20;
-
-		    return (
-				<div id="gn-power-quality-chart">
+			return (
+				<div id="gn-power-quality-chart"
+					style={{height: 425 + (showGraphB + showGraphC) * 115}}>
+					
 					<div id="gn-power-quality-chart-header">
 						<span><b>{GN.Lang.pqChart}</b></span>
 					</div>
 					<div id="gn-power-quality-chart-body">
-						{graph && graph.length ?
+						{this.graph && this.graph.length ?
 							<div>
-								<svg id="gn-chart-svg"
-									height={height + margin.top + margin.bottom + 60}
-									width={width + margin.left + margin.right + 20}>
-									
-									<g transform=
-										{'translate('
-											+ (margin.left + 40) + ','
-											+ margin.top + ')'}>
+								<div id="gn-chart-svg">
+									{(this.phases !== 1 && (showGraphA || (!showGraphB && !showGraphC))) ?
+										<span className="gn-phase-id">A</span>
+										: null}
+									<svg style=
+											{{display:
+												(showGraphA || (!showGraphB && !showGraphC)) ?
+													'block'
+													: 'none',
+											marginTop: this.phases === 1 ? '-15px' : '-60px',
+											marginLeft: this.phases === 1 ? '0' : '40px'}}
+										height=
+											{this.state.height
+											+ this.state.margin.top
+											+ this.state.margin.bottom + 50}
+										width=
+											{this.state.width
+											+ this.state.margin.left
+											+ this.state.margin.right}>
 										
-										<path className="gn-path-voltage gn-first"
-											style={{
-												display:
-													this.state.voltageA ? 'block' : 'none'}}
-											d={valueline(graph)} />
+										{this.state.linearGradients[0]}
+
+										<g transform=
+											{'translate('
+												+ this.state.margin.left + ','
+												+ this.state.margin.top + ')'}>
+											
+											<path className="gn-path-voltage gn-first"
+												style={{
+													display:
+														this.state.voltageA ? 'block' : 'none'}}
+												d={this.state.path}
+												stroke="url(#gn-voltageAGrad)" />
+											
+
+											<path className="gn-path-current gn-first"
+												style={{
+													display:
+														this.state.currentA ? 'block' : 'none'}}
+												d={this.state.path2} />
 										
-										<path className="gn-path-current gn-first"
-											style={{
-												display:
-													this.state.currentA ? 'block' : 'none'}}
-											d={valueline2(graph)} />
-									
-										<path className="gn-path-power-factor gn-first"
-											style={{
-												display:
-													this.state.powerFactorA ? 'block' : 'none'}}
-											d={valueline3(graph)} />
+											<path className="gn-path-power-factor gn-first"
+												style={{
+													display:
+														this.state.powerFactorA ? 'block' : 'none'}}
+												d={this.state.path3} />										
 
-										<path className="gn-path-voltage gn-second"
-											style={{
-												display:
-													this.state.voltageB ? 'block' : 'none'}}
-											d={valueline4(graph)} />
-									
-										<path className="gn-path-current gn-second"
-											style={{
-												display:
-													this.state.currentB ? 'block' : 'none'}}
-											d={valueline5(graph)} />
-									
-										<path className="gn-path-power-factor gn-second"
-											style={{
-												display:
-													this.state.powerFactorB ? 'block' : 'none'}}
-											d={valueline6(graph)} />
+											<g className="x axis"
+												transform={'translate(0,' + this.state.height + ')'} />
+											
+											{this.state.voltageA ?										
+												<g className="y axis yaxis1 a">
+													<text className="gn-uom" dx="-30px" dy="-15px">
+														{GN.Lang.volts}
+													</text>
+												</g>
+												: null}
+											
+											{(this.state.currentA && this.state.currentDomain) ?										
+												<g className="y axis yaxis2 a"
+														transform={'translate(' + this.state.width + ',0)'}>
 
-										<path className="gn-path-voltage gn-third"
-											style={{
-												display:
-													this.state.voltageC ? 'block' : 'none'}}
-											d={valueline7(graph)} />
-									
-										<path className="gn-path-current gn-third"
-											style={{
-												display:
-													this.state.currentC ? 'block' : 'none'}}
-											d={valueline8(graph)} />
-									
-										<path className="gn-path-power-factor gn-third"
-											style={{
-												display:
-													this.state.powerFactorC ? 'block' : 'none'}}
-											d={valueline9(graph)} />
+													<text className="gn-uom" dy="-15px">
+														{GN.Lang.amps}
+													</text>
+												</g>
+												: null}
 
-										<g className="x axis"
-											transform={'translate(0,' + height + ')'} />
+											{(this.state.powerFactorA && this.state.powerFactorDomain) ?
+												<g className="y axis yaxis3 a"
+														transform=
+															{'translate('
+																+ (this.state.width + (this.state.currentA ? 50 : 0))
+																+ ',0)'}>
+
+													<text className="gn-uom" dy="-15px">
+														{GN.Lang.powerFactor}
+													</text>
+												</g>
+												: null}
+										</g>
+									</svg>
+									{showGraphB ?
+										<span className="gn-phase-id gn-second">B</span>
+										: null}
+									<svg className="gn-second"
+										style={{display: showGraphB ? 'block' : 'none'}}
+										height={this.state.height + this.state.margin.top + this.state.margin.bottom + 50}
+										width={this.state.width + this.state.margin.left + this.state.margin.right}>
 										
-										{this.state.voltageA
-											|| this.state.voltageB
-											|| this.state.voltageC ?
+										{this.state.linearGradients[1]}
+
+										<g transform=
+											{'translate(' + this.state.margin.left + ',' + this.state.margin.top + ')'}>										
+											
+											<path className="gn-path-voltage gn-second"
+												style={{
+													display:
+														this.state.voltageB ? 'block' : 'none'}}
+												d={this.state.path4}
+												stroke="url(#gn-voltageBGrad)" />										
+
+											<path className="gn-path-current gn-second"
+												style={{
+													display:
+														this.state.currentB ? 'block' : 'none'}}
+												d={this.state.path5} />								
+
+											{false ?
+												<path className="gn-path-power-factor gn-second"
+													style={{
+														display:
+															this.state.powerFactorB ? 'block' : 'none'}}
+													d={this.state.path6} />
+												: null}
+
+											<g className="x axis"
+												transform={'translate(0,' + this.state.height + ')'} />
+											
+											{this.state.voltageB ?										
+												<g className="y axis yaxis1 b">
+													<text className="gn-uom"
+														dx="-30px"
+														dy="-15px" />
+												</g>
+												: null}
+											
+											{(this.state.currentB && this.state.currentDomainB) ?										
+												<g className="y axis yaxis2 b"
+														transform={'translate(' + this.state.width + ',0)'}>
+
+													<text className="gn-uom" dy="-15px" />
+												</g>
+												: null}
+
+											{(this.state.powerFactorB && this.state.powerFactorDomainB) ?
+												<g className="y axis yaxis3 b"
+														transform=
+															{'translate('
+																+ (this.state.width + (this.state.currentB ? 50 : 0))
+																+ ',0)'}>
+
+													<text className="gn-uom" dy="-15px" />
+												</g>
+												: null}
+										</g>
+									</svg>
+									{showGraphC ?
+										<span className="gn-phase-id gn-third">C</span>
+										: null}
+									<svg className="gn-third"
+										style={{display: showGraphC ? 'block' : 'none'}}
+										height={this.state.height + this.state.margin.top + this.state.margin.bottom + 50}
+										width={this.state.width + this.state.margin.left + this.state.margin.right}>
 										
-											<g className="y axis yaxis1">
-												<text className="gn-uom" dx="-30px" dy="-15px">
-													{GN.Lang.volts}
-												</text>
-											</g>
-											: ""}
-										
-										{this.state.currentA
-											|| this.state.currentB
-											|| this.state.currentC ?
-										
-											<g className="y axis yaxis2"
-													transform={'translate(' + width + ',0)'}>
+										{this.state.linearGradients[2]}
 
-												<text className="gn-uom" dy="-15px">
-													{GN.Lang.amps}
-												</text>
-											</g>
-											: ""}
+										<g transform=
+											{'translate(' + this.state.margin.left + ',' + this.state.margin.top + ')'}>										
+											<path className="gn-path-voltage gn-third"
+												style={{
+													display:
+														this.state.voltageC ? 'block' : 'none'}}
+												d={this.state.path7}
+												stroke="url(#gn-voltageCGrad)" />
 
-										{this.state.powerFactorA
-											|| this.state.powerFactorB
-											|| this.state.powerFactorC ?
+											<path className="gn-path-current gn-third"
+												style={{
+													display:
+														this.state.currentC ? 'block' : 'none'}}
+												d={this.state.path8} />
 
-											<g className="y axis yaxis3"
-													transform=
-														{'translate(' + (width + 50) + ',0)'}>
+											{false ?
+												<path className="gn-path-power-factor gn-third"
+													style={{
+														display:
+															this.state.powerFactorC ? 'block' : 'none'}}
+													d={this.state.path9} />
+												: null}
 
-												<text className="gn-uom" dy="-15px">
-													{GN.Lang.powerFactor}
-												</text>
-											</g>
-											: ""}
-									</g>
-								</svg>
-								<div id="gn-chart-voltage-bands">
-									<div id="firstband" />
-									<div id="secondband" />
+											<g className="x axis"
+												transform={'translate(0,' + this.state.height + ')'} />
+											
+											{this.state.voltageC ?										
+												<g className="y axis yaxis1 c">
+													<text className="gn-uom"
+														dx="-30px"
+														dy="-15px" />
+												</g>
+												: null}
+											
+											{(this.state.currentC && this.state.currentDomainC) ?										
+												<g className="y axis yaxis2 c"
+														transform={'translate(' + this.state.width + ',0)'}>
+
+													<text className="gn-uom" dy="-15px" />
+												</g>
+												: null}
+
+											{(this.state.powerFactorC && this.state.powerFactorDomainC) ?
+												<g className="y axis yaxis3 c"
+														transform=
+															{'translate('
+																+ (this.state.width + (this.state.currentC ? 50 : 0))
+																+ ',0)'}>
+
+													<text className="gn-uom" dy="-15px" />
+												</g>
+												: null}
+										</g>
+									</svg>
+								</div>
+								<div id="gn-voltage-bands">
+									<div><b><u>{GN.Lang.voltageBands}</u></b></div>
+									 {this.state.voltageBands.map(function(band, index) {
+									 	return (
+									 		<div key={index}>
+									 			<svg height="10" width="10">
+													<rect className="gn-band"
+														style={{fill: '#' + band.color}}
+														height="10"
+														width="10" />
+												</svg>
+												<span>{band.bandName}</span>
+									 		</div>
+									 	);
+									 })}
 								</div>
 								<div id="gn-chart-toggles">
-									<input type="checkbox"
-										onChange={this.clickVoltageA}
-										checked={this.state.voltageA} />
-									
-									<svg>
-										<line className="gn-path-voltage"
-											x2={legendLineLength} />
-									</svg>
+									<div><b><u>{GN.Lang.phase + " A"}</u></b></div>
+									<div>
+										<input type="checkbox"
+											onChange={this.clickVoltageA}
+											checked={this.state.voltageA} />
+										
+										<svg>
+											<line className="gn-path-voltage"
+												x2={this.state.legendLineLength} />
+										</svg>
 
-									<span onClick={this.clickVoltageA}>
-										{GN.Lang.voltage + " A"}
-									</span>
+										<span onClick={this.clickVoltageA}>
+											{GN.Lang.voltage}
+										</span>
+									</div>																		
+									<div>
+										<input type="checkbox"
+											onChange={this.clickPowerFactorA}
+											checked={this.state.powerFactorA} />
+										
+										<svg>
+											<line className="gn-path-power-factor"
+												x2={this.state.legendLineLength} />
+										</svg>
 
-									<input type="checkbox"
-										onChange={this.clickVoltageB}
-										checked={this.state.voltageB} />
-									
-									<svg>
-										<line className="gn-path-voltage gn-second"
-											x2={legendLineLength} />
-									</svg>
+										<span onClick={this.clickPowerFactorA}>
+											{GN.Lang.powerFactor}
+										</span>
+									</div>
+									<div>
+										<input type="checkbox"
+											onChange={this.clickCurrentA}
+											checked={this.state.currentA} />
+										
+										<svg>
+											<line className="gn-path-current"
+												x2={this.state.legendLineLength} />
+										</svg>
 
-									<span onClick={this.clickVoltageB}>
-										{GN.Lang.voltage + " B"}
-									</span>
+										<span onClick={this.clickCurrentA}>
+											{GN.Lang.current}
+										</span>
+									</div>
+									{this.phases !== 1  ?
+										[<div key={0}><b><u>{GN.Lang.phase + " B"}</u></b></div>,
+										<div key={1}>
+											<input type="checkbox"
+												onChange={this.clickVoltageB}
+												checked={this.state.voltageB} />
+											
+											<svg>
+												<line className="gn-path-voltage gn-second"
+													x2={this.state.legendLineLength} />
+											</svg>
 
-									<input type="checkbox"
-										onChange={this.clickVoltageC}
-										checked={this.state.voltageC} />
-									
-									<svg>
-										<line className="gn-path-voltage gn-third"
-											x2={legendLineLength} />
-									</svg>
+											<span onClick={this.clickVoltageB}>
+												{GN.Lang.voltage}
+											</span>
+										</div>,
+										<div key={2}>
+											<input type="checkbox"
+												onChange={this.clickPowerFactorB}
+												checked={this.state.powerFactorB} />
+											
+											<svg>
+												<line className="gn-path-power-factor gn-second"
+													x2={this.state.legendLineLength} />
+											</svg>
 
-									<span onClick={this.clickVoltageC}>
-										{GN.Lang.voltage + " C"}
-									</span>
+											<span onClick={this.clickPowerFactorB}>
+												{GN.Lang.powerFactor}
+											</span>
+										</div>,
+										<div key={3}>
+											<input type="checkbox"
+												onChange={this.clickCurrentB}
+												checked={this.state.currentB} />
+											
+											<svg>
+												<line className="gn-path-current gn-second"
+													x2={this.state.legendLineLength} />
+											</svg>
 
-									<input type="checkbox"
-										onChange={this.clickCurrentA}
-										checked={this.state.currentA} />
-									
-									<svg>
-										<line className="gn-path-current"
-											x2={legendLineLength} />
-									</svg>
+											<span onClick={this.clickCurrentB}>
+												{GN.Lang.current}
+											</span>
+										</div>]
+										: []}
+									{this.phases === 3 ?
+										[<div key={0}><b><u>{GN.Lang.phase + " C"}</u></b></div>,
+										<div key={1}>
+											<input type="checkbox"
+												onChange={this.clickVoltageC}
+												checked={this.state.voltageC} />
+											
+											<svg>
+												<line className="gn-path-voltage gn-third"
+													x2={this.state.legendLineLength} />
+											</svg>
 
-									<span onClick={this.clickCurrentA}>
-										{GN.Lang.current + " A"}
-									</span>
+											<span onClick={this.clickVoltageC}>
+												{GN.Lang.voltage}
+											</span>
+										</div>,
+										<div key={2}>
+											<input type="checkbox"
+												onChange={this.clickPowerFactorC}
+												checked={this.state.powerFactorC} />
+											
+											<svg>
+												<line className="gn-path-power-factor gn-third"
+													x2={this.state.legendLineLength} />
+											</svg>
 
-									<input type="checkbox"
-										onChange={this.clickCurrentB}
-										checked={this.state.currentB} />
-									
-									<svg>
-										<line className="gn-path-current gn-second"
-											x2={legendLineLength} />
-									</svg>
+											<span onClick={this.clickPowerFactorC}>
+												{GN.Lang.powerFactor}
+											</span>
+										</div>,					
+										<div key={3}>
+											<input type="checkbox"
+												onChange={this.clickCurrentC}
+												checked={this.state.currentC} />
+											
+											<svg>
+												<line className="gn-path-current gn-third"
+													x2={this.state.legendLineLength} />
+											</svg>
 
-									<span onClick={this.clickCurrentB}>
-										{GN.Lang.current + " B"}
-									</span>
-
-									<input type="checkbox"
-										onChange={this.clickCurrentC}
-										checked={this.state.currentC} />
-									
-									<svg>
-										<line className="gn-path-current gn-third"
-											x2={legendLineLength} />
-									</svg>
-
-									<span onClick={this.clickCurrentC}>
-										{GN.Lang.current + " C"}
-									</span>
-
-									<input type="checkbox"
-										onChange={this.clickPowerFactorA}
-										checked={this.state.powerFactorA} />
-									
-									<svg>
-										<line className="gn-path-power-factor"
-											x2={legendLineLength} />
-									</svg>
-
-									<span onClick={this.clickPowerFactorA}>
-										{GN.Lang.powerFactor + " A"}
-									</span>
-
-									<input type="checkbox"
-										onChange={this.clickPowerFactorB}
-										checked={this.state.powerFactorB} />
-									
-									<svg>
-										<line className="gn-path-power-factor gn-second"
-											x2={legendLineLength} />
-									</svg>
-
-									<span onClick={this.clickPowerFactorB}>
-										{GN.Lang.powerFactor + " B"}
-									</span>
-
-									<input type="checkbox"
-										onChange={this.clickPowerFactorC}
-										checked={this.state.powerFactorC} />
-									
-									<svg>
-										<line className="gn-path-power-factor gn-third"
-											x2={legendLineLength} />
-									</svg>
-
-									<span onClick={this.clickPowerFactorC}>
-										{GN.Lang.powerFactor + " C"}
-									</span>
-								</div>
+											<span onClick={this.clickCurrentC}>
+												{GN.Lang.current}
+											</span>
+										</div>]
+										: []}
+								</div>								
 							</div>
 							: <div id="gn-power-quality-no-data">
 								{GN.Lang.noData}
@@ -457,15 +709,28 @@ define(['react', 'models/powerquality', 'jquery'], function(React, PowerQuality,
 		componentDidUpdate: function() {
 			if (!this.state.loading) {
 				this.xAxis(d3.selectAll('.x.axis'));
-				this.yAxisLeft(d3.selectAll('.yaxis1'));
-				this.yAxisRight(d3.selectAll('.yaxis2'));
-				this.yAxisRight2(d3.selectAll('.yaxis3'));
+				this.yAxisLeft(d3.selectAll('.yaxis1.a'));
+				this.yAxisRight(d3.selectAll('.yaxis2.a'));
+				this.yAxisRight2(d3.selectAll('.yaxis3.a'));
+				this.yAxisLeftB(d3.selectAll('.yaxis1.b'));
+				this.yAxisRightB(d3.selectAll('.yaxis2.b'));
+				this.yAxisRight2B(d3.selectAll('.yaxis3.b'));
+				this.yAxisLeftC(d3.selectAll('.yaxis1.c'));
+				this.yAxisRightC(d3.selectAll('.yaxis2.c'));
+				this.yAxisRight2C(d3.selectAll('.yaxis3.c'));
 
-				$('g .x.axis g text').each(function(index) {
-					var label = $(this);
-				    var labelParts = label.html().split(' ');
-				    label.html('');
-				    
+				$('g .x.axis g text').each(function(index) {					
+					var labelParts;
+					if (this.innerHTML) {
+						var label = $(this);
+				    	labelParts = label.html().split(' ');
+				    	label.html('');
+					} else { //for IE
+						labelParts = this.textContent.split(' ');
+				    	this.textContent = '';
+						
+					}
+
 				    if (index % 2) {
 				    	return;
 				    }
@@ -481,22 +746,23 @@ define(['react', 'models/powerquality', 'jquery'], function(React, PowerQuality,
 				   	}
 				});
 
-				if (!this.hoversAdded) {
+				if (!this.state.hoversAdded) {
 					var hoverModal = $('#gn-pq-hover');
-					var timeFormat = d3.time.format("%d/%m %H:%M");
+					var timeFormat = d3.time.format("%m/%d %H:%M");
 					this.hoverPoints = {};
 
 				   	this.addHovers('voltageA', hoverModal, timeFormat, this.y0, 'y', GN.Lang.volts, '.gn-path-voltage.gn-first');
 				   	this.addHovers('currentA', hoverModal, timeFormat, this.y1, 'a', GN.Lang.amps, '.gn-path-current.gn-first');
 				   	this.addHovers('powerFactorA', hoverModal, timeFormat, this.y2, 'z', GN.Lang.powerFactor, '.gn-path-power-factor.gn-first');
-				   	this.addHovers('voltageB', hoverModal, timeFormat, this.y0, 'y2', GN.Lang.volts, '.gn-path-voltage.gn-second');
-				   	this.addHovers('currentB', hoverModal, timeFormat, this.y1, 'a2', GN.Lang.amps, '.gn-path-current.gn-second');
-				   	this.addHovers('powerFactorB', hoverModal, timeFormat, this.y2, 'z2', GN.Lang.powerFactor, '.gn-path-power-factor.gn-second');
-				   	this.addHovers('voltageC', hoverModal, timeFormat, this.y0, 'y3', GN.Lang.volts, '.gn-path-voltage.gn-third');
-				   	this.addHovers('currentC', hoverModal, timeFormat, this.y1, 'a3', GN.Lang.amps, '.gn-path-current.gn-third');
-				   	this.addHovers('powerFactorC', hoverModal, timeFormat, this.y2, 'z3', GN.Lang.powerFactor, '.gn-path-power-factor.gn-third');
+				   	this.addHovers('voltageB', hoverModal, timeFormat, this.y0B, 'y2', GN.Lang.volts, '.gn-path-voltage.gn-second');
+				   	this.addHovers('currentB', hoverModal, timeFormat, this.y1B, 'a2', GN.Lang.amps, '.gn-path-current.gn-second');
+				   	this.addHovers('powerFactorB', hoverModal, timeFormat, this.y2B, 'z2', GN.Lang.powerFactor, '.gn-path-power-factor.gn-second');
+				   	this.addHovers('voltageC', hoverModal, timeFormat, this.y0C, 'y3', GN.Lang.volts, '.gn-path-voltage.gn-third');
+				   	this.addHovers('currentC', hoverModal, timeFormat, this.y1C, 'a3', GN.Lang.amps, '.gn-path-current.gn-third');
+				   	this.addHovers('powerFactorC', hoverModal, timeFormat, this.y2C, 'z3', GN.Lang.powerFactor, '.gn-path-power-factor.gn-third');
 
-				    this.hoversAdded = true;
+				    this.state.hoversAdded = true;
+				    $('#page-title .ajax-loading').hide();
 				}
 			}
 		},
@@ -514,7 +780,11 @@ define(['react', 'models/powerquality', 'jquery'], function(React, PowerQuality,
 	        		return this.x(d.date);
 	        	}.bind(this)) 
 		        .attr("cy", function(d) {
-		        	return scale(d[unit]);
+		        	if (d[unit] === null) {
+		        		return -100
+		        	}
+
+		        	return scale(d[unit]) || -100;
 		        })
 		        .on("mouseover", function(d) {		
 		           if (this.state[toggle]) {
@@ -525,27 +795,27 @@ define(['react', 'models/powerquality', 'jquery'], function(React, PowerQuality,
 		           hoverModal.hide();
 		        });
 
-		        d3.selectAll('circle').each(function(d) {
-		        	var index = parseInt(this.x(d.date));
-		        	if (!this.hoverPoints[index]) {
-		        		this.hoverPoints[index] = d;
-		        	}		   			        
-			    }.bind(this));
+	        d3.selectAll('circle').each(function(d) {
+	        	var index = parseInt(this.x(d.date));
+	        	if (!this.hoverPoints[index]) {
+	        		this.hoverPoints[index] = d;
+	        	}		   			        
+		    }.bind(this));
 
-		        var component = this;
-			    d3.select('path' + pathSelector)
-				    .on("mouseover", function() {
-				    	var d;
-				    	var mousePosition = d3.mouse(this)[0];
-				    	while((typeof d === 'undefined' || d === null) && mousePosition > -1) {
-				    		d = component.hoverPoints[mousePosition--];
-				    	}
+	        var component = this;
+		    d3.select('path' + pathSelector)
+			    .on("mouseover", function() {
+			    	var d;
+			    	var mousePosition = d3.mouse(this)[0];
+			    	while((typeof d === 'undefined' || d === null) && mousePosition > -1) {
+			    		d = component.hoverPoints[mousePosition--];
+			    	}
 
-			          	component.drawTooltip(d, timeFormat, unitCaption, unit, hoverModal);
-			        })
-				    .on("mouseout", function(d) {
-				    	hoverModal.hide();
-				    });
+		          	component.drawTooltip(d, timeFormat, unitCaption, unit, hoverModal);
+		        })
+			    .on("mouseout", function(d) {
+			    	hoverModal.hide();
+			    });
 		},
 		drawTooltip: function(d, timeFormat, unitCaption, unit, hoverModal) {
 			var html =
@@ -555,10 +825,10 @@ define(['react', 'models/powerquality', 'jquery'], function(React, PowerQuality,
            	hoverModal.html(html)
            		.css({
            			display: 'inline-block',
-    				left: d3.event.pageX - 65,
-    				top: d3.event.pageY - 635})
+    				left: d3.event.pageX - 75,
+    				top: d3.event.pageY - 180})
 		},
-		getDomain: function(graph, key1, key2, key3) {
+		getDomain: function(graph, key1, key2, key3, percentPad) {
 			var min =
 				d3.min(
 		    		graph,
@@ -566,18 +836,40 @@ define(['react', 'models/powerquality', 'jquery'], function(React, PowerQuality,
 		    			return Math.min.apply(
 							Math,
 							[point[key1], point[key2], point[key3]].filter(function(value) {
-								return value !== null;
+								return value !== null && value !== undefined;
 							}));
 					});
+
+			if (min === Infinity) {
+				return null;
+			}
 
 		    var max =
 		    	d3.max(
 		    		graph,
 		    		function(point) {
-						return Math.max(point[key1], point[key2], point[key3]);
+						return Math.max.apply(
+							Math,
+							[point[key1], point[key2], point[key3]].filter(function(value) {
+								return value !== null && value !== undefined;
+							}));
 					});
 
-		    var padding = (max - min) / 10;
+		    if (max === -Infinity) {
+				return null;
+			}
+
+			if (min === max) {
+				if (key1 === 'z') {
+					return [-1, 1];
+				}
+
+				if (key1 === 'a') {
+					return [0, max === 0 ? 1 : max * 2];
+				}
+			}
+
+		    var padding = percentPad ? ((max - min) / percentPad) : 0;
 		    return [min - padding, max + padding];
 		},
 		clickVoltageA: function() {
