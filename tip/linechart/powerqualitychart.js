@@ -11,28 +11,35 @@ define(['react', 'models/powerquality', 'jquery'], function(React, PowerQuality,
 
 			this.model.on('sync', function(data) {
 				var data = data.models[0];
+				
 				this.graph = data.get('graph');
 				
-				this.phases = 1;
+				this.showPhaseB = false;
+				this.showPhaseC = false;
 				if (this.graph && this.graph.length) {
-					var firstPoint = this.graph[0];
-					
-					if (firstPoint.y2) {
-						this.phases++;
+					for (var i = 0; i < this.graph.length; i++) {
+						if (this.graph[i].y2) {
+							this.showPhaseB = true;
+							break;
+						}
+					}
 
-						if (firstPoint.y3) {
-							this.phases++;
+					for (var i = 0; i < this.graph.length; i++) {
+						if (this.graph[i].y3) {
+							this.showPhaseC = true;
+							break;
 						}
 					}
 				}
+				
+				this.phases = 1 + this.showPhaseB + this.showPhaseC;
 
-				var ticks = 15;
-				var tickFormat = "%m/%d %H:%M";
-				var pointDistance = 60000; //one minute
+				var ticks;
+				var tickFormat;
 				switch(data.get('aggregateType')) {
-					case 'Hour':  pointDistance *= 60; break;
-					case 'HalfHour':  pointDistance *= 30; break;
-					case 'QuarterHour': pointDistance *= 15; break;
+					case 'Hour': tickFormat = "%m/%d %H:%M"; ticks = 15; break;
+					case 'HalfHour': tickFormat = "%m/%d %H:%M"; ticks = 15; break;
+					case 'QuarterHour': tickFormat = "%m/%d %H:%M"; ticks = 15; break;
 					default: tickFormat = "%H:%M"; ticks = 24;	
 				}
 
@@ -44,9 +51,9 @@ define(['react', 'models/powerquality', 'jquery'], function(React, PowerQuality,
 						.tickFormat(d3.time.format(tickFormat));
 
 				var height =
-					(this.phases === 1 ? 320 : (350 - (this.phases - 1) * 75)
+					(this.phases === 1 ? 380 : (350 - (this.phases - 1) * 75))
 					- margin.top
-					- margin.bottom);
+					- margin.bottom;
 				
 				this.y0 = d3.scale.linear().range([height, 0]);
 				this.y1 = d3.scale.linear().range([height, 0]);
@@ -170,9 +177,20 @@ define(['react', 'models/powerquality', 'jquery'], function(React, PowerQuality,
 			    }
 
 			    var voltageBandsets = data.get('bands');		    
-		    	var voltageBands = voltageBandsets[voltageBandsets[''] ? '' : 3].userValues;
+		    	
+		    	var voltageBands =
+		    		voltageBandsets ?
+		    			voltageBandsets[voltageBandsets[''] ? '' : 4].userValues
+		    			: [{voltageMin: 0,
+		    				voltageMax: 10000,
+		    				color: 'black',
+		    				bandName: GN.Lang.allBands}];
 
-				var voltageADomain = this.getDomain(this.graph, 'y');			
+				var voltageADomain = this.getDomain(this.graph, 'y');
+				if (!voltageADomain) {
+					this.setState({loading: false, noResults: true});
+					return;
+				}			
 
 				var gradients = [{
 					id: 'gn-voltageAGrad',
@@ -181,25 +199,33 @@ define(['react', 'models/powerquality', 'jquery'], function(React, PowerQuality,
 				}];
 
 				var voltageBDomain = this.getDomain(this.graph, 'y2');
-				if (voltageBDomain) {
-					gradients.push({
-						id: 'gn-voltageBGrad',
-						min: voltageBDomain[0],
-						height: voltageBDomain[1] - voltageBDomain[0]
-					});
-				}
+				
+				gradients.push(
+					voltageBDomain ?
+						{
+							id: 'gn-voltageBGrad',
+							min: voltageBDomain[0],
+							height: voltageBDomain[1] - voltageBDomain[0]
+						}
+						: null);
 
 				var voltageCDomain = this.getDomain(this.graph, 'y3');
-				if (voltageCDomain) {
-					gradients.push({
-						id: 'gn-voltageCGrad',
-						min: voltageCDomain[0],
-						height: voltageCDomain[1] - voltageCDomain[0]
-					});
-				}
+				
+				gradients.push(
+					voltageCDomain ?
+						{
+							id: 'gn-voltageCGrad',
+							min: voltageCDomain[0],
+							height: voltageCDomain[1] - voltageCDomain[0]
+						}
+						: null);
 
 				var linearGradients =
 					gradients.map(function(gradient, index) {
+						if (!gradient) {
+							return null;
+						}
+
 						var ratio = 100 / gradient.height
 
 						return (
@@ -222,12 +248,12 @@ define(['react', 'models/powerquality', 'jquery'], function(React, PowerQuality,
 
 									return [
 										<stop key={index * 2 + 1}
-											stopColor={'#' + band.color}
+											stopColor={(band.color === 'black' ? '' : '#') + band.color}
 											offset=
 												{(minOffset * ratio) + '%'} />,												
 
 										<stop key={index * 2 + 2}
-											stopColor={'#' + band.color}
+											stopColor={(band.color === 'black' ? '' : '#') + band.color}
 											offset=
 												{(maxOffset * ratio) + '%'} />
 									];
@@ -246,8 +272,8 @@ define(['react', 'models/powerquality', 'jquery'], function(React, PowerQuality,
 
 				this.setState({
 					loading: false,
+					noResults: false,
 					height: height,							
-					pointDistance: pointDistance,
 					currentDomain: currentDomain,
 					powerFactorDomain: powerFactorDomain,
 					currentDomainB: currentDomainB,
@@ -260,11 +286,11 @@ define(['react', 'models/powerquality', 'jquery'], function(React, PowerQuality,
 					path3: this.pathFunction(this.y2, 'z')(this.graph),
 					path4: this.pathFunction(this.y0B, 'y2')(this.graph),
 					path5: this.pathFunction(this.y1B, 'a2')(this.graph),
-					//path6: this.pathFunction(this.y2B, 'z2')(this.graph),
+					path6: this.pathFunction(this.y2B, 'z2')(this.graph),
 					path7: this.pathFunction(this.y0C, 'y3')(this.graph),
 					path8: this.pathFunction(this.y1C, 'a3')(this.graph),
-					//path9: this.pathFunction(this.y2C, 'z3')(this.graph),
-					voltageBands: voltageBands,
+					path9: this.pathFunction(this.y2C, 'z3')(this.graph),
+					legendVoltageBands: voltageBands.slice(0).reverse(),
 					hoversAdded: false
 				});
 			}.bind(this));			
@@ -290,14 +316,18 @@ define(['react', 'models/powerquality', 'jquery'], function(React, PowerQuality,
 		    	.y(function(point) {
 		    		return scale(point[unit]);
 		    	}.bind(this)).defined(function(point) {
-		    		return point[unit];
+		    		return point[unit] !== null;
 		    	});
 		},
 		render: function() {
 			$('#pw-quality-profile-table-chart table').remove();
 
-			if (this.state.loading) {
-				$('.ajax-loading').show();
+			if (this.state.loading || this.state.noResults) {
+				if (this.state.loading) {
+					$('.ajax-loading').show();
+				} else {
+					$('#page-title .ajax-loading').hide();
+				}
 
 				return (
 					<div id="gn-power-quality-chart">
@@ -305,8 +335,10 @@ define(['react', 'models/powerquality', 'jquery'], function(React, PowerQuality,
 							<span><b>{GN.Lang.pqChart}</b></span>
 						</div>
 						<div id="gn-power-quality-chart-body">
-							<div id="gn-power-quality-no-data">
-								<span className="ajax-loading">{' '}</span>
+							<div id="gn-chart-no-data">
+								{this.state.loading ?
+									<span className="ajax-loading">{' '}</span>
+									: <span>{GN.Lang.noResults}</span>}
 							</div>
 						</div>
 					</div>
@@ -317,28 +349,36 @@ define(['react', 'models/powerquality', 'jquery'], function(React, PowerQuality,
 				this.state.voltageA || this.state.currentA || this.state.powerFactorA;
 
 			var showGraphB =
-				this.phases !== 1
+				this.showPhaseB
 				&& (this.state.voltageB || this.state.currentB || this.state.powerFactorB);
 
 			var showGraphC =
-				this.phases === 3
+				this.showPhaseC
 				&& (this.state.voltageC || this.state.currentC || this.state.powerFactorC);
 
+			var componentHeight;
+			switch(this.phases) {
+				case 1: componentHeight = 425; break;
+				case 2: componentHeight = 600; break;
+				case 3: componentHeight = 675; break;
+			}
+
 			return (
-				<div id="gn-power-quality-chart"
-					style={{height: 425 + (showGraphB + showGraphC) * 115}}>
-					
+				<div id="gn-power-quality-chart" style={{height: componentHeight}}>					
 					<div id="gn-power-quality-chart-header">
 						<span><b>{GN.Lang.pqChart}</b></span>
 					</div>
 					<div id="gn-power-quality-chart-body">
 						{this.graph && this.graph.length ?
 							<div>
-								<div id="gn-chart-svg">
-									{(this.phases !== 1 && (showGraphA || (!showGraphB && !showGraphC))) ?
-										<span className="gn-phase-id">A</span>
-										: null}
-									<svg style=
+								<div className="gn-chart-svg"
+									style={{paddingTop: (showGraphA ? 20 : 60) + 'px'}}>
+
+									{this.phases === 1 ?
+										null
+										: <span className="gn-phase-id" style={{top: this.phases === 2 ? 100 : 50}}>A</span>}
+									<svg className="gn-first" 
+										style=
 											{{display:
 												(showGraphA || (!showGraphB && !showGraphC)) ?
 													'block'
@@ -417,7 +457,7 @@ define(['react', 'models/powerquality', 'jquery'], function(React, PowerQuality,
 										</g>
 									</svg>
 									{showGraphB ?
-										<span className="gn-phase-id gn-second">B</span>
+										<span className="gn-phase-id gn-second" style={{top: this.phases === 2 ? 75 : 25}}>B</span>
 										: null}
 									<svg className="gn-second"
 										style={{display: showGraphB ? 'block' : 'none'}}
@@ -442,13 +482,11 @@ define(['react', 'models/powerquality', 'jquery'], function(React, PowerQuality,
 														this.state.currentB ? 'block' : 'none'}}
 												d={this.state.path5} />								
 
-											{false ?
-												<path className="gn-path-power-factor gn-second"
-													style={{
-														display:
-															this.state.powerFactorB ? 'block' : 'none'}}
-													d={this.state.path6} />
-												: null}
+											<path className="gn-path-power-factor gn-second"
+												style={{
+													display:
+														this.state.powerFactorB ? 'block' : 'none'}}
+												d={this.state.path6} />
 
 											<g className="x axis"
 												transform={'translate(0,' + this.state.height + ')'} />
@@ -457,7 +495,10 @@ define(['react', 'models/powerquality', 'jquery'], function(React, PowerQuality,
 												<g className="y axis yaxis1 b">
 													<text className="gn-uom"
 														dx="-30px"
-														dy="-15px" />
+														dy="-15px">
+
+														{showGraphA ? '' : GN.Lang.volts}
+													</text>
 												</g>
 												: null}
 											
@@ -465,7 +506,9 @@ define(['react', 'models/powerquality', 'jquery'], function(React, PowerQuality,
 												<g className="y axis yaxis2 b"
 														transform={'translate(' + this.state.width + ',0)'}>
 
-													<text className="gn-uom" dy="-15px" />
+													<text className="gn-uom" dy="-15px">
+														{showGraphA ? '' : GN.Lang.amps}
+													</text>
 												</g>
 												: null}
 
@@ -476,13 +519,15 @@ define(['react', 'models/powerquality', 'jquery'], function(React, PowerQuality,
 																+ (this.state.width + (this.state.currentB ? 50 : 0))
 																+ ',0)'}>
 
-													<text className="gn-uom" dy="-15px" />
+													<text className="gn-uom" dy="-15px">
+														{showGraphA ? '' : GN.Lang.powerFactor}
+													</text>
 												</g>
 												: null}
 										</g>
 									</svg>
 									{showGraphC ?
-										<span className="gn-phase-id gn-third">C</span>
+										<span className="gn-phase-id gn-third" style={{top: this.phases === 2 ? 65 : 15}}>C</span>
 										: null}
 									<svg className="gn-third"
 										style={{display: showGraphC ? 'block' : 'none'}}
@@ -506,13 +551,11 @@ define(['react', 'models/powerquality', 'jquery'], function(React, PowerQuality,
 														this.state.currentC ? 'block' : 'none'}}
 												d={this.state.path8} />
 
-											{false ?
-												<path className="gn-path-power-factor gn-third"
-													style={{
-														display:
-															this.state.powerFactorC ? 'block' : 'none'}}
-													d={this.state.path9} />
-												: null}
+											<path className="gn-path-power-factor gn-third"
+												style={{
+													display:
+														this.state.powerFactorC ? 'block' : 'none'}}
+												d={this.state.path9} />
 
 											<g className="x axis"
 												transform={'translate(0,' + this.state.height + ')'} />
@@ -521,7 +564,12 @@ define(['react', 'models/powerquality', 'jquery'], function(React, PowerQuality,
 												<g className="y axis yaxis1 c">
 													<text className="gn-uom"
 														dx="-30px"
-														dy="-15px" />
+														dy="-15px">
+
+														{!showGraphA && !showGraphB ?
+															GN.Lang.volts
+															: ''}
+													</text>
 												</g>
 												: null}
 											
@@ -529,7 +577,11 @@ define(['react', 'models/powerquality', 'jquery'], function(React, PowerQuality,
 												<g className="y axis yaxis2 c"
 														transform={'translate(' + this.state.width + ',0)'}>
 
-													<text className="gn-uom" dy="-15px" />
+													<text className="gn-uom" dy="-15px">
+														{!showGraphA && !showGraphB ?
+															GN.Lang.amps
+															: ''}
+													</text>
 												</g>
 												: null}
 
@@ -540,7 +592,11 @@ define(['react', 'models/powerquality', 'jquery'], function(React, PowerQuality,
 																+ (this.state.width + (this.state.currentC ? 50 : 0))
 																+ ',0)'}>
 
-													<text className="gn-uom" dy="-15px" />
+													<text className="gn-uom" dy="-15px">
+														{!showGraphA && !showGraphB ?
+															GN.Lang.powerFactor
+															: ''}
+													</text>
 												</g>
 												: null}
 										</g>
@@ -548,7 +604,7 @@ define(['react', 'models/powerquality', 'jquery'], function(React, PowerQuality,
 								</div>
 								<div id="gn-voltage-bands">
 									<div><b><u>{GN.Lang.voltageBands}</u></b></div>
-									 {this.state.voltageBands.map(function(band, index) {
+									 {this.state.legendVoltageBands.map(function(band, index) {
 									 	return (
 									 		<div key={index}>
 									 			<svg height="10" width="10">
@@ -577,36 +633,40 @@ define(['react', 'models/powerquality', 'jquery'], function(React, PowerQuality,
 										<span onClick={this.clickVoltageA}>
 											{GN.Lang.voltage}
 										</span>
-									</div>																		
-									<div>
-										<input type="checkbox"
-											onChange={this.clickPowerFactorA}
-											checked={this.state.powerFactorA} />
-										
-										<svg>
-											<line className="gn-path-power-factor"
-												x2={this.state.legendLineLength} />
-										</svg>
-
-										<span onClick={this.clickPowerFactorA}>
-											{GN.Lang.powerFactor}
-										</span>
 									</div>
-									<div>
-										<input type="checkbox"
-											onChange={this.clickCurrentA}
-											checked={this.state.currentA} />
-										
-										<svg>
-											<line className="gn-path-current"
-												x2={this.state.legendLineLength} />
-										</svg>
+									{this.state.powerFactorDomain ?																	
+										<div>
+											<input type="checkbox"
+												onChange={this.clickPowerFactorA}
+												checked={this.state.powerFactorA} />
+											
+											<svg>
+												<line className="gn-path-power-factor"
+													x2={this.state.legendLineLength} />
+											</svg>
 
-										<span onClick={this.clickCurrentA}>
-											{GN.Lang.current}
-										</span>
-									</div>
-									{this.phases !== 1  ?
+											<span onClick={this.clickPowerFactorA}>
+												{GN.Lang.powerFactor}
+											</span>
+										</div>
+										: null}
+									{this.state.currentDomain ?
+										<div>
+											<input type="checkbox"
+												onChange={this.clickCurrentA}
+												checked={this.state.currentA} />
+											
+											<svg>
+												<line className="gn-path-current"
+													x2={this.state.legendLineLength} />
+											</svg>
+
+											<span onClick={this.clickCurrentA}>
+												{GN.Lang.current}
+											</span>
+										</div>
+										: null}
+									{this.showPhaseB  ?
 										[<div key={0}><b><u>{GN.Lang.phase + " B"}</u></b></div>,
 										<div key={1}>
 											<input type="checkbox"
@@ -622,36 +682,40 @@ define(['react', 'models/powerquality', 'jquery'], function(React, PowerQuality,
 												{GN.Lang.voltage}
 											</span>
 										</div>,
-										<div key={2}>
-											<input type="checkbox"
-												onChange={this.clickPowerFactorB}
-												checked={this.state.powerFactorB} />
-											
-											<svg>
-												<line className="gn-path-power-factor gn-second"
-													x2={this.state.legendLineLength} />
-											</svg>
+										this.state.powerFactorDomainB ?
+											<div key={2}>
+												<input type="checkbox"
+													onChange={this.clickPowerFactorB}
+													checked={this.state.powerFactorB} />
+												
+												<svg>
+													<line className="gn-path-power-factor gn-second"
+														x2={this.state.legendLineLength} />
+												</svg>
 
-											<span onClick={this.clickPowerFactorB}>
-												{GN.Lang.powerFactor}
-											</span>
-										</div>,
-										<div key={3}>
-											<input type="checkbox"
-												onChange={this.clickCurrentB}
-												checked={this.state.currentB} />
-											
-											<svg>
-												<line className="gn-path-current gn-second"
-													x2={this.state.legendLineLength} />
-											</svg>
+												<span onClick={this.clickPowerFactorB}>
+													{GN.Lang.powerFactor}
+												</span>
+											</div>
+											: null,
+										this.state.currentDomainB ?
+											<div key={3}>
+												<input type="checkbox"
+													onChange={this.clickCurrentB}
+													checked={this.state.currentB} />
+												
+												<svg>
+													<line className="gn-path-current gn-second"
+														x2={this.state.legendLineLength} />
+												</svg>
 
-											<span onClick={this.clickCurrentB}>
-												{GN.Lang.current}
-											</span>
-										</div>]
+												<span onClick={this.clickCurrentB}>
+													{GN.Lang.current}
+												</span>
+											</div>
+											: null]
 										: []}
-									{this.phases === 3 ?
+									{this.showPhaseC ?
 										[<div key={0}><b><u>{GN.Lang.phase + " C"}</u></b></div>,
 										<div key={1}>
 											<input type="checkbox"
@@ -667,42 +731,46 @@ define(['react', 'models/powerquality', 'jquery'], function(React, PowerQuality,
 												{GN.Lang.voltage}
 											</span>
 										</div>,
-										<div key={2}>
-											<input type="checkbox"
-												onChange={this.clickPowerFactorC}
-												checked={this.state.powerFactorC} />
-											
-											<svg>
-												<line className="gn-path-power-factor gn-third"
-													x2={this.state.legendLineLength} />
-											</svg>
+										this.state.powerFactorDomainC ?
+											<div key={2}>
+												<input type="checkbox"
+													onChange={this.clickPowerFactorC}
+													checked={this.state.powerFactorC} />
+												
+												<svg>
+													<line className="gn-path-power-factor gn-third"
+														x2={this.state.legendLineLength} />
+												</svg>
 
-											<span onClick={this.clickPowerFactorC}>
-												{GN.Lang.powerFactor}
-											</span>
-										</div>,					
-										<div key={3}>
-											<input type="checkbox"
-												onChange={this.clickCurrentC}
-												checked={this.state.currentC} />
-											
-											<svg>
-												<line className="gn-path-current gn-third"
-													x2={this.state.legendLineLength} />
-											</svg>
+												<span onClick={this.clickPowerFactorC}>
+													{GN.Lang.powerFactor}
+												</span>
+											</div>
+											: null,					
+										this.state.currentDomainC ?
+											<div key={3}>
+												<input type="checkbox"
+													onChange={this.clickCurrentC}
+													checked={this.state.currentC} />
+												
+												<svg>
+													<line className="gn-path-current gn-third"
+														x2={this.state.legendLineLength} />
+												</svg>
 
-											<span onClick={this.clickCurrentC}>
-												{GN.Lang.current}
-											</span>
-										</div>]
+												<span onClick={this.clickCurrentC}>
+													{GN.Lang.current}
+												</span>
+											</div>
+											: null]
 										: []}
 								</div>								
 							</div>
-							: <div id="gn-power-quality-no-data">
+							: <div id="gn-chart-no-data">
 								{GN.Lang.noData}
 							</div>}
 					</div>
-					<div id="gn-pq-hover" />
+					<div className="gn-chart-hover" />
 				</div>
 			);
 		},
@@ -747,44 +815,125 @@ define(['react', 'models/powerquality', 'jquery'], function(React, PowerQuality,
 				});
 
 				if (!this.state.hoversAdded) {
-					var hoverModal = $('#gn-pq-hover');
+					var hoverModal = $('.gn-chart-hover');
 					var timeFormat = d3.time.format("%m/%d %H:%M");
 					this.hoverPoints = {};
 
-				   	this.addHovers('voltageA', hoverModal, timeFormat, this.y0, 'y', GN.Lang.volts, '.gn-path-voltage.gn-first');
-				   	this.addHovers('currentA', hoverModal, timeFormat, this.y1, 'a', GN.Lang.amps, '.gn-path-current.gn-first');
-				   	this.addHovers('powerFactorA', hoverModal, timeFormat, this.y2, 'z', GN.Lang.powerFactor, '.gn-path-power-factor.gn-first');
-				   	this.addHovers('voltageB', hoverModal, timeFormat, this.y0B, 'y2', GN.Lang.volts, '.gn-path-voltage.gn-second');
-				   	this.addHovers('currentB', hoverModal, timeFormat, this.y1B, 'a2', GN.Lang.amps, '.gn-path-current.gn-second');
-				   	this.addHovers('powerFactorB', hoverModal, timeFormat, this.y2B, 'z2', GN.Lang.powerFactor, '.gn-path-power-factor.gn-second');
-				   	this.addHovers('voltageC', hoverModal, timeFormat, this.y0C, 'y3', GN.Lang.volts, '.gn-path-voltage.gn-third');
-				   	this.addHovers('currentC', hoverModal, timeFormat, this.y1C, 'a3', GN.Lang.amps, '.gn-path-current.gn-third');
-				   	this.addHovers('powerFactorC', hoverModal, timeFormat, this.y2C, 'z3', GN.Lang.powerFactor, '.gn-path-power-factor.gn-third');
+				   	this.addHovers(
+				   		'voltageA',
+				   		hoverModal,
+				   		timeFormat,
+				   		this.y0,
+				   		'y',
+				   		GN.Lang.volts,
+				   		'gn-first',
+				   		'.gn-path-voltage.gn-first');
+
+				   	this.addHovers(
+				   		'currentA',
+				   		hoverModal,
+				   		timeFormat,
+				   		this.y1,
+				   		'a',
+				   		GN.Lang.amps,
+				   		'gn-first',
+				   		'.gn-path-current.gn-first');
+				   	
+				   	this.addHovers(
+				   		'powerFactorA',
+				   		hoverModal,
+				   		timeFormat,
+				   		this.y2,
+				   		'z',
+				   		GN.Lang.powerFactor,
+				   		'gn-first',
+				   		'.gn-path-power-factor.gn-first');
+				   	
+				   	this.addHovers(
+				   		'voltageB',
+				   		hoverModal,
+				   		timeFormat,
+				   		this.y0B,
+				   		'y2',
+				   		GN.Lang.volts,
+				   		'gn-second',
+				   		'.gn-path-voltage.gn-second');
+				   	
+				   	this.addHovers(
+				   		'currentB',
+				   		hoverModal,
+				   		timeFormat,
+				   		this.y1B,
+				   		'a2',
+				   		GN.Lang.amps,
+				   		'gn-second',
+				   		'.gn-path-current.gn-second');
+				   	
+				   	this.addHovers(
+				   		'powerFactorB',
+				   		hoverModal,
+				   		timeFormat,
+				   		this.y2B,
+				   		'z2',
+				   		GN.Lang.powerFactor,
+				   		'gn-second',
+				   		'.gn-path-power-factor.gn-second');
+				   	
+				   	this.addHovers(
+				   		'voltageC',
+				   		hoverModal,
+				   		timeFormat,
+				   		this.y0C,
+				   		'y3',
+				   		GN.Lang.volts,
+				   		'gn-third',
+				   		'.gn-path-voltage.gn-third');
+				   	
+				   	this.addHovers(
+				   		'currentC',
+				   		hoverModal,
+				   		timeFormat,
+				   		this.y1C,
+				   		'a3',
+				   		GN.Lang.amps,
+				   		'gn-third',
+				   		'.gn-path-current.gn-third');
+				   	
+				   	this.addHovers(
+				   		'powerFactorC',
+				   		hoverModal,
+				   		timeFormat,
+				   		this.y2C,
+				   		'z3',
+				   		GN.Lang.powerFactor,
+				   		'gn-third',
+				   		'.gn-path-power-factor.gn-third');
 
 				    this.state.hoversAdded = true;
 				    $('#page-title .ajax-loading').hide();
+
+					this.offset = $('#gn-power-quality-chart').offset();
 				}
 			}
 		},
-		addHovers: function(toggle, hoverModal, timeFormat, scale, unit, unitCaption, pathSelector) {
+		addHovers: function(toggle, hoverModal, timeFormat, scale, unit, unitCaption, phaseClass, pathSelector) {
 			//The circles aren't actually necessary but make a nice landing spot for mouse
 
-			d3.select('svg g')
+			d3.select('svg.' + phaseClass + ' g')
 		   		.selectAll('dot')
-		   		.data(this.graph)
+		   		.data(
+		   			this.graph.filter(function(d) {
+			    		return d[unit] !== null && scale(d[unit]);
+			    	}))
 		    	.enter()
-		    	.append("circle")
+		    	.append("circle")		    	
 		    	.attr("class", unit)								
 		        .attr("r", 5)		
 		        .attr("cx", function(d) {
 	        		return this.x(d.date);
 	        	}.bind(this)) 
 		        .attr("cy", function(d) {
-		        	if (d[unit] === null) {
-		        		return -100
-		        	}
-
-		        	return scale(d[unit]) || -100;
+		        	return scale(d[unit]);
 		        })
 		        .on("mouseover", function(d) {		
 		           if (this.state[toggle]) {
@@ -795,7 +944,7 @@ define(['react', 'models/powerquality', 'jquery'], function(React, PowerQuality,
 		           hoverModal.hide();
 		        });
 
-	        d3.selectAll('circle').each(function(d) {
+	        d3.selectAll('svg.' + phaseClass + ' circle').each(function(d) {
 	        	var index = parseInt(this.x(d.date));
 	        	if (!this.hoverPoints[index]) {
 	        		this.hoverPoints[index] = d;
@@ -825,8 +974,8 @@ define(['react', 'models/powerquality', 'jquery'], function(React, PowerQuality,
            	hoverModal.html(html)
            		.css({
            			display: 'inline-block',
-    				left: d3.event.pageX - 75,
-    				top: d3.event.pageY - 180})
+    				left: d3.event.pageX - this.offset.left - 55,
+    				top: d3.event.pageY - this.offset.top - 66})
 		},
 		getDomain: function(graph, key1, key2, key3, percentPad) {
 			var min =
@@ -859,13 +1008,21 @@ define(['react', 'models/powerquality', 'jquery'], function(React, PowerQuality,
 				return null;
 			}
 
-			if (min === max) {
-				if (key1 === 'z') {
-					return [-1, 1];
+			if ((key1 === 'y' || key2 === 'y2' || key3 === 'y3') && max - min < 1) {
+				var extraRange = (1 - max + min) / 2;
+				min -= extraRange;
+				max += extraRange;
+			} else if (key1 === 'z' || key2 === 'z2' || key3 === 'z3') {
+				return [-1.2, 1.2];
+			} else if (key1 === 'a' || key2 === 'a2' || key3 === 'a3') {
+				if (min === max) {
+					return [0, max === 0 ? 1 : max * 2];
 				}
 
-				if (key1 === 'a') {
-					return [0, max === 0 ? 1 : max * 2];
+				if (max - min < 10) {
+					var extraRange = (10 - max + min) / 2;
+					min -= extraRange;
+					max += extraRange;
 				}
 			}
 
