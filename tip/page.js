@@ -1,46 +1,37 @@
-import React from 'react';
-import Session from '../models/session';
-import Dashboard from '../components/dashboard';
-import Login from '../components/login';
-
-class Page extends React.Component {
-	constructor(props) {
-		super();
-		this.session = new Session();
-		this.state = props;
-	}
-
-	getChildContext() {
-	    return {session: this.session};
-	}
+define(['react', 'components/billingpolicywizard', 'components/cmdhpolicywizard',
+	'components/scapolicywizard', 'components/loadshedchart', 'components/devicecommentcolumn',
+	'components/devicemapdash', 'components/zendeskwidget', 'components/reportnavigation',
+	'components/powerqualitychart', 'components/topologytoggle', 'components/intervaldatachart',
+	'components/provisioningsettings', 'components/serviceoffrecurringsettings'],
+function(React, BillingPolicyWizard, CMDHPolicyWizard, SCAPolicyWizard, LoadShedChart,
+		DeviceCommentColumn, DeviceMapDash, ZDWidget, ReportNavigation, PowerQualityChart,
+		TopologyToggle, IntervalDataChart, ProvisioningSettings, ServiceOffRecurringSettings) {
 	
-	render() {
-		if (!this.session.exists()) {
+	return React.createClass({
+		getInitialState: function() {
+			return this.props;
+		},
+		render: function() {
 			return (
 				<div className="gn-react-page">
-					<Login page={this} />
-					<i className="fa fa-cog" aria-hidden="true"></i>
+					{this.props.showBillingPolicyWizard ? <BillingPolicyWizard /> : ''}
+					{this.props.showCMDHPolicyWizard ? <CMDHPolicyWizard /> : ''}
+					{this.props.showSCAPolicyWizard ? <SCAPolicyWizard /> : ''}
+					{this.props.showServiceOffRecurringSettings ? <ServiceOffRecurringSettings /> : ''}
+					{this.props.showLoadShedChart ? <LoadShedChart /> : ''}							
+					{this.props.showDeviceCommentColumn ? <DeviceCommentColumn /> : ''}
+					{this.props.showTopologyToggle ? <TopologyToggle /> : ''}
+					{this.props.showDevicemap ?
+						<DeviceMapDash params={this.state.params} reload={this.state.reload} />
+						: ''}
+					{this.props.showReportNavigation ? <ReportNavigation /> : ''}
+					{this.props.showPowerQualityChart ? <PowerQualityChart /> : ''}
+					{this.props.showIntervalDataChart ? <IntervalDataChart compact={this.state.compact} />: ''}
+					{this.props.showProvisioningSettings ? <ProvisioningSettings />: ''}
+					{useZendeskWidget ? <ZDWidget/> : ''}
+					<div id="gn-react-page-veil" />
 				</div>
 			);
 		}
-		
-		return (
-			<div className="gn-react-page">
-				{this.state.showDashboard ? <Dashboard /> : ""}
-				<a id="gn-logout" onClick={this.logout.bind(this)}><b>Logout</b></a>
-				<i className="fa fa-cog" aria-hidden="true"></i>
-				<div id="gn-react-page-veil" />
-			</div>
-		);
-	}
-	
-	logout() {
-		this.session.logout(function() {
-			this.setState({});
-		}.bind(this));
-	}
-}
-
-Page.childContextTypes = {session: React.PropTypes.object}
-
-export default Page;
+	});
+});
