@@ -1,0 +1,28 @@
+/* Z-index */
+$show-on-top: 4;
+$veil-everything: 3;
+$show-over-all-content: 2;
+
+/* Panels */
+$panel-border-color: lightgray;
+$panel-nav-border-color: lightgray;
+$panel-border-size: 2px;
+$panel-border-radius: 10px;
+$panel-nav-border-radius: $panel-border-radius - 3;
+$panel-color: white;
+$panel-padding: 20px;
+
+/* Components */
+$component-padding: 9px;
+$button-color: gray;
+$button-active-color: black;
+$button-active-bg: white;
+
+/* Shades */
+$clear: rgba(0,0,0,0);
+$see-through: rgba(0,0,0,0.4);
+$shadier: rgba(0,0,0,0.5);
+
+/* Other colors */
+$page-background: black;
+$warning-color: yellow;

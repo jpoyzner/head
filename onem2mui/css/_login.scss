@@ -1,0 +1,21 @@
+#gn-login-form {
+	@extend .panel;
+    margin-left: -175px;    
+    top: 30%;
+    width: 350px;
+    
+    #gn-login-error {
+		color: $warning-color;
+		margin-bottom: 10px;
+		text-align: center;
+	}
+	
+	.gn-login-input {
+		@extend .input;
+	    margin-bottom: 10px;
+	    
+	    span {
+		    margin-right: 10px;
+		}				    
+	}
+}

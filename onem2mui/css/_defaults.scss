@@ -1,0 +1,88 @@
+a {
+	cursor: pointer;
+	text-decoration: underline;
+}
+
+.fa-cog {
+	@include fixed(top 12px left 12px)
+	color: black;
+	display: none;
+    font-size: 30px;
+}
+
+.component {
+	border: $panel-border-size solid $panel-border-color;
+ 	border-radius: $panel-border-radius;
+ 	padding: $component-padding;
+}
+
+.panel {
+	@extend .component;
+	background-color: $see-through;  	    
+ 	color: $panel-color;
+ 	padding: $panel-padding;
+}
+
+.full-panel {
+	@extend .panel;
+	background-color: $shadier;  	
+}
+
+.input {
+	@extend .component;
+
+	input {
+	    background-color: $clear;
+	    border: none;
+	    outline: none;
+	    color: $panel-color;
+	}
+}
+
+.button {
+	@extend .component;
+	background-color: $button-color;
+	text-align: center;
+	
+	&:hover {
+		cursor: pointer;
+	}
+	
+	&:active {
+		background-color: $button-active-bg;
+		color: $button-active-color;
+	}
+}
+
+* {
+	user-select: none;
+}
+
+.iconButton {
+	border: 1px solid;
+    border-radius: 5px;
+    cursor: pointer;
+    padding: 5px;
+    @include relative(top 7px);
+    
+    &:hover {
+		background-color: blue;
+	}
+}
+
+.toggleParent {
+	> span {
+		border: 1px solid gray;
+    	background-color: white;
+    	cursor: pointer;
+    	padding: 1px 5px;
+	    
+	    &:first-of-type {
+	    	border-radius: 4px 0 0 4px;
+	    }
+	    
+	     &:last-of-type {
+	    	border-radius: 0 4px 4px 0;
+	    }
+	}
+}

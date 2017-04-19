@@ -1,0 +1,20 @@
+body {
+	background-color: $page-background;
+	
+	#gn-logout {
+		@include fixed(top 10px right 10px);
+		color: $panel-color;	
+	}
+	
+	#gn-react-page-veil {
+		background-color: lightgray;    
+		display: none;
+	    height: 100%;
+	    left: 0;
+	    opacity: 0.5;
+	    position: fixed;
+	    top: 0;
+	    width: 100%;
+	    z-index: $veil-everything;
+	}
+}

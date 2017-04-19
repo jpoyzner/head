@@ -1,0 +1,9 @@
+module.exports = {
+	allowedOrigins: ['localhost', '10.12.0.72'], //array of client domains allowed to access this server
+	cookieKey: 'myCookieKey', //string used to sign and decode cookies
+	nodeHost: '10.12.0.72', //External address where this host can be reached
+	nodePort: 8081, //Port on external address where this host can be reached
+	useTLS: true, //Whether to turn TLS on
+	wsHost: '192.168.50.7:10000', //[Host]:[Port] where Web Service can be accessed
+	wsPassphrase: 'YdjfzpDWH8P8a2vLdcmZqw==', //Passphrase used by Web Service when using TLS
+}

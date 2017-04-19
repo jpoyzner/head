@@ -1,0 +1,38 @@
+#gn-dashboard {
+	i {
+		color: $panel-border-color;
+		cursor: pointer;
+		font-size: 60px;
+		
+		&:hover {
+			color: white;
+		}
+	}
+	
+	#gn-dashboard-nav {
+		@extend .full-panel;
+		border: none;
+		border-radius: 0;
+		cursor: pointer;
+		display: flex;		
+	 	padding: 0;
+		
+		span {
+			border: $panel-border-size solid $panel-border-color;
+			border-color: $panel-nav-border-color;
+			padding: 5px 10px;
+			
+			/*&:first-child {
+				border-radius: $panel-nav-border-radius 0 0 $panel-nav-border-radius;
+			}
+			
+			&:last-child {
+				border-radius: 0 $panel-nav-border-radius $panel-nav-border-radius 0;
+			}*/
+		}
+	}
+	
+	.gn-dashboard-panel {
+		@extend .full-panel;	
+	}
+}
