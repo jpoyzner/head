@@ -1,0 +1,80 @@
+Capabilities:
+https://code.google.com/p/selenium/wiki/DesiredCapabilities
+
+Capabilites Generator:
+https://docs.saucelabs.com/reference/platforms-configurator/#/
+
+Cloud Services:
+http://webdriver.io/guide/testrunner/cloudservices.html
+
+'''This is a framework for using Webdriver.io, run from an external service such as browserstack to have automated tests hit Grid Net's UI code. Enjoy!
+
+== TECHNOLOGY STACK ==
+{{{
+Webdriver.io (Selenium)
+Gulp
+Mocha
+Chai
+Babel
+Browserstack
+Jenkins
+}}}
+
+== CHECK OUT PROJECT ==
+{{{
+...
+}}}
+
+== INSTALL DEPENDENCIES ==
+
+=== INSTALL NODE ===
+{{{
+sudo yum install nodejs
+}}}
+
+=== INSTALL NPM ===
+{{{
+sudo yum install npm
+}}}
+
+=== INSTALL WEBDRIVERIO ===
+{{{
+sudo npm install -g webdriverio
+}}}
+
+=== INSTALL GULP ===
+{{{
+npm install -g gulp
+}}}
+
+== RUN TESTS ==
+
+=== RUN ON BROWSERSTACK ===
+{{{
+gulp
+}}}
+
+=== ALTERNATIVES ===
+You can run tests on your own selenium server.
+You woud need to start the server:
+{{{
+java -jar libs/selenium-server-standalone-2.47.0.jar
+}}}
+
+...this would also require that all of the drivers for each capability configuration are installed. Also, the drivers don't gurantee that the device and browser combination will behave exactly the same way.
+
+Once this is ready, you can comment out the following lines in /conf/wdio.conf.js:
+{{{
+///host: 'hub.browserstack.com',
+///user: 'someuser',
+///key:  'sOmEkEy',
+}}}
+
+...then run:
+{{{
+gulp
+}}}
+
+...ulimately this can be automated to not have to commented out lines by creating separate gulp tasks.
+
+
