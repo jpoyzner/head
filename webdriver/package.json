@@ -1,7 +1,7 @@
 {
   "name": "webdriver",
   "version": "1.0.0",
-  "description": "See: https://trac.grid-net.com/wiki/MainEng/SwQa/Selenium/EndToEnd",
+  "description": "ok",
   "main": "gulpfile.js",
   "directories": {
     "test": "tests"
@@ -23,7 +23,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git://git.grid-net.com/webdriver"
+    "url": "git://git.something.com/webdriver"
   },
   "keywords": [],
   "author": "",

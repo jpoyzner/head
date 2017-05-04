@@ -10,11 +10,11 @@ if (argv.creds) {
 var webdriver = require('gulp-webdriver')(webdriverOptions);
 
 gulp.task('default', ['browserstack'], function() {
-    console.log("Finished GridNet end-to-end tests!");
+    console.log("Finished end-to-end tests!");
 });
 
 gulp.task('local', ['localtests'], function() {
-    console.log("Finished GridNet end-to-end tests!");
+    console.log("Finished end-to-end tests!");
 });
 
 gulp.task('browserstack', function() {
